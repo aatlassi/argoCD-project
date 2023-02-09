@@ -1,0 +1,51 @@
+node {
+    def app
+
+    stage('Clone Repo') {
+      checkout scm
+    }
+
+    stage('Environment') {
+      sh 'git --version'
+      echo "Branch: ${env.BRANCH_NAME}"
+      sh 'docker -v'
+      sh 'printenv'
+    }
+
+
+    stage('Build Docker test'){
+
+        app= docker.build("myimage;${env.BUILD_NUMBER}")
+    
+     echo "image built successfully"
+    }
+
+    stage('Push image to docker hub') {
+              environment {
+                  registryCredential = 'dockerhub'
+                  registry="https://hub.docker.com/r/stategyhq/myapp"
+              }
+              
+              
+              steps{ 
+                  script {
+                      def appimage = docker.build registry + ":$BUILD_NUMBER"
+                      docker.withRegistry( '', registryCredential ) {
+                          appimage.push()
+                          appimage.push('latest')
+
+                        echo "image pushed successfully to docker hub registry"
+                      }
+                  }
+            
+                  }
+    }
+ 
+    stage ('Trigger Update Manifest') {
+           
+            echo "Triggering Update Manifest Job"
+            build job: 'argocd-manifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
+                
+        }
+
+}
