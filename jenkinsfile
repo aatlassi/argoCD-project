@@ -12,40 +12,23 @@ node {
       sh 'printenv'
     }
 
+    stage('Build and push Docker Image'){
 
-    stage('Build Docker test'){
+        app= docker.build("securecom2023/immo:${env.BUILD_NUMBER}")
+         docker.withRegistry('', 'dockerhub') {
 
-        app= docker.build("myimage:${env.BUILD_NUMBER}")
-    
+        def customImage = docker.build("securecom2023/immo:${env.BUILD_ID}")
+
+        /* Push the container to the custom Registry */
+        customImage.push()
+      }
      echo "image built successfully"
     }
-
-    stage('Push image to docker hub') {
-              environment {
-                  registryCredential = 'dockerhub'
-                  registry="https://hub.docker.com/r/stategyhq/myapp"
-              }
-              
-              
-              steps{ 
-                  script {
-                      def appimage = docker.build registry + ":$BUILD_NUMBER"
-                      docker.withRegistry( '', registryCredential ) {
-                          appimage.push()
-                          appimage.push('latest')
-
-                        echo "image pushed successfully to docker hub registry"
-                      }
-                  }
-            
-                  }
-    }
-
 
     stage('Remove Unused docker image'){
 
       steps{
-        sh "docker rmi $registry:$BUILD_NUMBER"
+        sh "docker rmi securecom2023/immo:$BUILD_NUMBER"
       }
     }
  
@@ -53,7 +36,7 @@ node {
     stage ('Trigger Update Manifest') {
            
             echo "Triggering Update Manifest Job"
-            build job: 'argocd-manifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
+            build job: 'immo-manifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
                 
         }
 
