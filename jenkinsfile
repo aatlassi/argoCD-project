@@ -1,6 +1,8 @@
 node {
     def app
-
+    parameters {
+       string(name: 'MY_PARAM', defaultValue: 'default_value', description: 'My parameter')
+    }
     stage('Clone Repo') {
       checkout scm
     }
@@ -14,29 +16,31 @@ node {
 
     stage('Build and push Docker Image'){
 
-        app= docker.build("securecom2023/immo:${env.BUILD_NUMBER}")
+        app= docker.build("stategyhq/myapp:${env.BUILD_NUMBER}")
          docker.withRegistry('', 'dockerhub') {
 
-        def customImage = docker.build("securecom2023/immo:${env.BUILD_ID}")
+        def customImage = docker.build("stategyhq/myapp:${env.BUILD_ID}")
 
         /* Push the container to the custom Registry */
-        customImage.push()
+       customImage.push()
       }
      echo "image built successfully"
     }
+    
 
-    stage('Remove Unused docker image'){
-
-      steps{
-        sh "docker rmi securecom2023/immo:$BUILD_NUMBER"
-      }
+    stage('Remove Unused docker image') {
+  
+       sh "docker rmi stategyhq/myapp:$BUILD_NUMBER"
+  
     }
- 
 
     stage ('Trigger Update Manifest') {
            
             echo "Triggering Update Manifest Job"
-            build job: 'immo-manifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
+            def buildNumberString = env.BUILD_NUMBER.toString()
+            echo buildNumberString
+            def DOCKERTAG = [string(name: 'MY_PARAM', value: buildNumberString)]
+            build job: 'argocd-manifest', parameters: DOCKERTAG
                 
         }
 
